@@ -1,3 +1,4 @@
+import java.util.Date;
 import java.util.HashMap;
 
 public class Main implements Constants{
@@ -14,9 +15,12 @@ public class Main implements Constants{
 //        db.addMovie(map);
 //        db.addMovie(map2);
 
-        RandGenerator.generateMovies(MOVIES_NUMBER);
-        RandGenerator.generateActors(ACTORS_NUMBER);
-        RandGenerator.allocateActors(AVERAGE_ACTORS_CAST_MOVIE_NUMBER);
-
+//        Generator.generateGenres();
+//        Generator.generateMovies(MOVIES_NUMBER);
+//        Generator.generateActors(ACTORS_NUMBER);
+//        Generator.allocateActors(AVERAGE_ACTORS_CAST_MOVIE_NUMBER);
+ Generator.generate();
+        //System.out.println(new Date());
+        //System.out.println(CURRENT_DATE);
     }
 }
