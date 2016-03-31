@@ -7,7 +7,7 @@ public class DBContorller implements Constants{
     Jedis jedis;
 
     public DBContorller(){
-        jedis = new Jedis("localhost", 6379);
+        jedis = new Jedis("localhost", 6379, 60000);
     }
 
     //add
@@ -55,7 +55,7 @@ public class DBContorller implements Constants{
     //delete
 
     public void deleteGenre(String genreID){
-        if (jedis.smembers(name(GENRES,genreID,"movies"))==null) {
+        if (jedis.smembers(name(GENRES,genreID,MOVIES))==null) {
             jedis.srem(GENRES, genreID);
             jedis.del(GENRES+":"+genreID);
         }
@@ -63,7 +63,7 @@ public class DBContorller implements Constants{
     }
 
     public void deleteActor(String actorID){
-        if (jedis.smembers(name(ACTORS,actorID,"movies"))==null) {
+        if (jedis.smembers(name(ACTORS,actorID,MOVIES))==null) {
             jedis.srem(ACTORS, actorID);
             jedis.del(ACTORS+":"+actorID);
         }
@@ -71,17 +71,40 @@ public class DBContorller implements Constants{
     }
 
     public void deleteMovie(String movie){
-        Set<String> genres = jedis.smembers(name(MOVIES,movie,"genres"));
+        Set<String> genres = jedis.smembers(name(MOVIES,movie,GENRES));
         for (String genre:genres){
-            jedis.srem(name(GENRES,genre,"movies"),movie);
+            jedis.srem(name(GENRES,genre,MOVIES),movie);
         }
         jedis.srem(MOVIES,movie);
-        jedis.del(name(MOVIES,movie,"genres"));
-        jedis.del(name(MOVIES,movie,"actors"));
+        jedis.del(name(MOVIES,movie,GENRES));
+        jedis.del(name(MOVIES,movie,ACTORS));
+        jedis.del(name(MOVIES,movie,RATINGS));
         jedis.del(name(MOVIES,movie));
     }
 
     //update
+
+    public void updateGenre(long id, String name){
+        String genreId = String.valueOf(id);
+        jedis.set(name(GENRES,genreId), name);
+    }
+
+    public void updateActor(long id, HashMap actor){
+        String actorId = String.valueOf(id);
+        jedis.hmset(name(ACTORS,actorId), actor);
+    }
+
+    public void updateRatings(long id, HashMap ratings){
+        String movieId = String.valueOf(id);
+        jedis.hmset(name(MOVIES,movieId,RATINGS),ratings);
+    }
+
+    public void updateMovie(long movieId,HashMap movie){
+        String id = String.valueOf(movieId);
+        jedis.hmset(name(MOVIES,id), movie);
+    }
+
+    //supporting
 
     public Set getGenres(){
         return jedis.smembers(GENRES);
@@ -91,11 +114,36 @@ public class DBContorller implements Constants{
         return jedis.smembers(ACTORS);
     }
 
-    public void getInfoAboutMovie(int id){
+    public void getInfoAboutMovie(long id){
         String movieId = String.valueOf(id);
-        List<String> movie = jedis.hmget(name(MOVIES,movieId));
-       // System.out.println(movieId+": "+);
 
+        Map<String,String> movie = jedis.hgetAll(name(MOVIES,movieId));
+        System.out.println("\nID: "+movieId);
+        for(Map.Entry<String, String> e : movie.entrySet()) {
+            System.out.print(e.getKey()+": "+e.getValue()+"\n");
+        }
+
+        Map<String, String> ratings = jedis.hgetAll(name(MOVIES,movieId,RATINGS));
+        System.out.println("\nRaings:");
+        for(Map.Entry<String, String> e : ratings.entrySet()) {
+            System.out.print(e.getKey()+": "+e.getValue()+"\n");
+        }
+
+        Set<String>genres = jedis.smembers(name(MOVIES,movieId,GENRES));
+        Iterator<String> iterator2 = genres.iterator();
+        System.out.println("\nGenres:");
+        while(iterator2.hasNext()) {
+            String genreId = iterator2.next();
+            System.out.println(jedis.get(name(GENRES,genreId)));
+        }
+
+        Set<String>actors = jedis.smembers(name(MOVIES,movieId,ACTORS));
+        Iterator<String> iterator = actors.iterator();
+        System.out.println("\nActors:");
+        while(iterator.hasNext()) {
+            String actorId = iterator.next();
+            System.out.println(jedis.hget(name(ACTORS, actorId), "name") + " " + jedis.hget(name(ACTORS, actorId), "surname"));
+        }
     }
 
     private String name(String str1, String str2, String str3){

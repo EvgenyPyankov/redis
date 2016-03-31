@@ -3,8 +3,6 @@ import java.util.*;
 public class Rand {
     private static Random rand = new Random();
 
-
-
     public static int getRand(int n){
         return rand.nextInt(n);
     }
@@ -16,7 +14,4 @@ public class Rand {
         long date = from +(long)(rand.nextDouble()*range);
         return new Date(date);
     }
-
-
-
 }

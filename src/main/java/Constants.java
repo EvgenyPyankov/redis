@@ -16,8 +16,6 @@ public interface Constants {
     String[]M_SURNAMES = {"Smith","Messi","Snow","Terry","Mellark","Hotorn","Hawthorne","Potter","Black","Odair","Crane","Flickerman","Ivanov","Petrov","Pyankov","Dumbledore","Griffingor","Slytherin","Malfoy"};
     String[]F_SURNAMES={"Smith","Green","Everdeen","Trinket","Potter","Mason","Cresta","Paylor","Cardew","Mellark","Hotorn","Kolesnikova","Bunakova","Granger","Delacour","Hufflepuff","Lestrange"};
     Date MOVIE_DATE_FROM = new Date(40,1,1);
-    Date BIRTH_DATE_FROM = new Date(1930,1,1);
-    Date BIRTH_DATE_TO = new Date();
     Date CURRENT_DATE = new Date();
     String[]RATING_SITES = {"Kinopoisk","IMDb","Guardian","Yahoo!Movies","MrQE"};
 }
