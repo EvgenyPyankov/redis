@@ -5,7 +5,9 @@ public class Main implements Constants{
     public static void main(String[] args) {
         DBContorller db = new DBContorller();
 
-        db.getInfoAboutMovie(33434);
-
+        // examples using search info
+        db.search(GENRES, "");
+        db.search(MOVIES, "Dec");
+        db.search(ACTORS, "vgen");
     }
 }

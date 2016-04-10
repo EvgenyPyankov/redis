@@ -124,7 +124,7 @@ public class DBContorller implements Constants{
         }
 
         Map<String, String> ratings = jedis.hgetAll(name(MOVIES,movieId,RATINGS));
-        System.out.println("\nRaings:");
+        System.out.println("\nRatings:");
         for(Map.Entry<String, String> e : ratings.entrySet()) {
             System.out.print(e.getKey()+": "+e.getValue()+"\n");
         }
@@ -144,6 +144,84 @@ public class DBContorller implements Constants{
             String actorId = iterator.next();
             System.out.println(jedis.hget(name(ACTORS, actorId), "name") + " " + jedis.hget(name(ACTORS, actorId), "surname"));
         }
+    }
+
+    public ArrayList<Map<String, String>> search(String Category, String SearchKey){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+
+        System.out.println("\nSelect all records from \""+Category+"\"");
+        System.out.println("  where attributes contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        if (!(Category.equalsIgnoreCase(GENRES) || Category.equalsIgnoreCase(MOVIES) || Category.equalsIgnoreCase(ACTORS))){
+
+            // invalid category name
+            // you may throw an exception here...
+
+        } else {
+
+            // list of available ids of current category
+            Set<String> idlist = jedis.smembers(Category);
+
+            boolean contains; // if record contains searchkey
+            String currentInfo; // record info
+            Map<String,String> record; // record map
+            // for each available ids
+            for(String id : idlist)
+            {
+                contains = false;
+                currentInfo = "";
+
+                if (Category.equalsIgnoreCase(ACTORS) || Category.equalsIgnoreCase(MOVIES)){
+                    // hashmap handling
+                    record = jedis.hgetAll(name(Category,id));
+                    currentInfo = "Key: \"" + name(Category,id) + "\"\n";
+                    for(Map.Entry<String, String> e : record.entrySet()) {
+                        currentInfo += e.getKey() + ": " + e.getValue() + "\n";
+                        if (e.getValue().contains(SearchKey) || e.getValue().contains(translatedSearchKey)){
+                            contains = true;
+                        }
+                    }
+                } else  {
+                    // string handling
+                    String key = name(Category,id);
+                    String value = jedis.get(key);
+                    record = new HashMap<String, String>();
+                    record.put(key, value);
+                    if (value.contains(translatedSearchKey) || value.contains(SearchKey)){
+                        currentInfo = "\"" + key + "\": " + value + "\n";
+                        contains = true;
+                    }
+                }
+
+                // if current record contains searchkey then add ones to result
+                // and print info
+                if (contains) {
+                    data.add(record);
+                    System.out.println(currentInfo);
+                }
+            }
+        }
+
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    public String langpadSwitch(String message){
+        String translatedMessage = "";
+        String en_ru_langsPattern = "qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?йцукенгшщзхъфывапролджэячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,";
+        int langpadSymbolsCount = en_ru_langsPattern.length() / 2;
+        for (int i = 0; i < message.length(); i++){
+            if (en_ru_langsPattern.indexOf(message.charAt(i)) > -1){
+                int translatedIndex = (en_ru_langsPattern.indexOf(message.charAt(i)) + langpadSymbolsCount) % (2 * langpadSymbolsCount);
+                translatedMessage += en_ru_langsPattern.charAt(translatedIndex);
+            } else{
+                translatedMessage += message.charAt(i);
+            }
+        }
+        return translatedMessage;
     }
 
     private String name(String str1, String str2, String str3){
