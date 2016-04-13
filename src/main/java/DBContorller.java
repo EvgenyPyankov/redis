@@ -166,20 +166,20 @@ public class DBContorller implements Constants{
             Set<String> idlist = jedis.smembers(Category);
 
             boolean contains; // if record contains searchkey
-            String currentInfo; // record info
+            //String currentInfo; // record info
             Map<String,String> record; // record map
             // for each available ids
             for(String id : idlist)
             {
                 contains = false;
-                currentInfo = "";
+                //currentInfo = "";
 
                 if (Category.equalsIgnoreCase(ACTORS) || Category.equalsIgnoreCase(MOVIES)){
                     // hashmap handling
                     record = jedis.hgetAll(name(Category,id));
-                    currentInfo = "Key: \"" + name(Category,id) + "\"\n";
+                    //currentInfo = "Key: \"" + name(Category,id) + "\"\n";
                     for(Map.Entry<String, String> e : record.entrySet()) {
-                        currentInfo += e.getKey() + ": " + e.getValue() + "\n";
+                    //    currentInfo += e.getKey() + ": " + e.getValue() + "\n";
                         if (e.getValue().contains(SearchKey) || e.getValue().contains(translatedSearchKey)){
                             contains = true;
                         }
@@ -191,7 +191,7 @@ public class DBContorller implements Constants{
                     record = new HashMap<String, String>();
                     record.put(key, value);
                     if (value.contains(translatedSearchKey) || value.contains(SearchKey)){
-                        currentInfo = "\"" + key + "\": " + value + "\n";
+                    //    currentInfo = "\"" + key + "\": " + value + "\n";
                         contains = true;
                     }
                 }
@@ -200,7 +200,47 @@ public class DBContorller implements Constants{
                 // and print info
                 if (contains) {
                     data.add(record);
-                    System.out.println(currentInfo);
+                    //System.out.println(currentInfo);
+                }
+            }
+        }
+
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    public ArrayList<Map<String, String>> search(String Category, String SearchKey,  String Field){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+
+        System.out.println("\nSelect all records from \""+Category+"\"");
+        System.out.println("  where field \"" + Field + "\" contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        if (!(Category.equalsIgnoreCase(MOVIES) || Category.equalsIgnoreCase(ACTORS))){
+
+            // invalid category name
+            // you may throw an exception here...
+
+        } else {
+
+            // list of available ids of current category
+            Set<String> idlist = jedis.smembers(Category);
+
+            boolean contains; // if record contains searchkey
+            String value; //  value of record's field
+            // for each available ids
+            for(String id : idlist)
+            {
+                value = jedis.hget(name(Category,id), Field);
+
+                // hashmap handling
+                contains =  value.contains(SearchKey) || value.contains(translatedSearchKey);
+
+                // if selected record's field contains the searchkey then add ones to result
+                if (contains) {
+                    data.add(jedis.hgetAll(name(Category,id)));
                 }
             }
         }
