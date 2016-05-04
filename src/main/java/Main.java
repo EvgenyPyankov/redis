@@ -6,8 +6,8 @@ public class Main implements Constants{
         DBContorller db = new DBContorller();
 
         // examples using search info
-        db.search(GENRES, "");
-        db.search(MOVIES, "Dec");
-        db.search(ACTORS, "vgen");
+        db.searchGenresUsingJaroWinkler("bgaph", 0.5);
+        db.searchGenresUsingLevenstein("bgaph", 5);
+        //db.searchGenresUsingDamerauLevenstein("bgaph", 5);
     }
 }

@@ -146,68 +146,219 @@ public class DBContorller implements Constants{
         }
     }
 
-    public ArrayList<Map<String, String>> search(String Category, String SearchKey){
+    // searching genres
+    public ArrayList<Map<String, String>> searchGenres(String SearchKey){
         // result data array
         ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
         // translated query
         String translatedSearchKey = langpadSwitch(SearchKey);
-
-        System.out.println("\nSelect all records from \""+Category+"\"");
+        System.out.println("\nSelect all records from \""+GENRES+"\"");
         System.out.println("  where attributes contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
 
-        if (!(Category.equalsIgnoreCase(GENRES) || Category.equalsIgnoreCase(MOVIES) || Category.equalsIgnoreCase(ACTORS))){
+        // list of available ids of current category
+        Set<String> idlist = jedis.smembers(GENRES);
 
-            // invalid category name
-            // you may throw an exception here...
+        boolean contains; // if record contains searchkey
+        String currentInfo; // record info
+        Map<String,String> record; // record map
+        // for each available ids
+        for(String id : idlist)
+        {
+            contains = false;
+            currentInfo = "";
 
-        } else {
+            // string handling
+            String key = name(GENRES,id);
+            String value = jedis.get(key);
+            record = new HashMap<String, String>();
+            record.put(key, value);
+            if (value.contains(translatedSearchKey) || value.contains(SearchKey)){
+                currentInfo = "\"" + key + "\": " + value + "\n";
 
-            // list of available ids of current category
-            Set<String> idlist = jedis.smembers(Category);
+                // similarity with searchkey
+                currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                currentInfo += "\t\tLevenstein         = " + FuzzySearch.levenshtein(SearchKey, value) + "\n";
+                currentInfo += "\t\tJaro-Winkler       = " + FuzzySearch.jaroWinkler(SearchKey, value) + "\n";
+                currentInfo += "\t\tDamerau-Levenstein = " + FuzzySearch.damerauLevenshtein(SearchKey, value) + "\n";
 
-            boolean contains; // if record contains searchkey
-            //String currentInfo; // record info
-            Map<String,String> record; // record map
-            // for each available ids
-            for(String id : idlist)
-            {
-                contains = false;
-                //currentInfo = "";
+                // similarity with translated searchkey
+                currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                currentInfo += "\t\tLevenstein         = " + FuzzySearch.levenshtein(translatedSearchKey, value) + "\n";
+                currentInfo += "\t\tJaro-Winkler       = " + FuzzySearch.jaroWinkler(translatedSearchKey, value) + "\n";
+                currentInfo += "\t\tDamerau-Levenstein = " + FuzzySearch.damerauLevenshtein(translatedSearchKey, value) + "\n";
+                currentInfo += "\n";
+                contains = true;
+            }
 
-                if (Category.equalsIgnoreCase(ACTORS) || Category.equalsIgnoreCase(MOVIES)){
-                    // hashmap handling
-                    record = jedis.hgetAll(name(Category,id));
-                    //currentInfo = "Key: \"" + name(Category,id) + "\"\n";
-                    for(Map.Entry<String, String> e : record.entrySet()) {
-                    //    currentInfo += e.getKey() + ": " + e.getValue() + "\n";
-                        if (e.getValue().contains(SearchKey) || e.getValue().contains(translatedSearchKey)){
-                            contains = true;
-                        }
-                    }
-                } else  {
-                    // string handling
-                    String key = name(Category,id);
-                    String value = jedis.get(key);
-                    record = new HashMap<String, String>();
-                    record.put(key, value);
-                    if (value.contains(translatedSearchKey) || value.contains(SearchKey)){
-                    //    currentInfo = "\"" + key + "\": " + value + "\n";
-                        contains = true;
-                    }
-                }
-
-                // if current record contains searchkey then add ones to result
-                // and print info
-                if (contains) {
-                    data.add(record);
-                    //System.out.println(currentInfo);
-                }
+            // if current record contains searchkey then add ones to result
+            // and print info
+            if (contains) {
+                data.add(record);
+                System.out.println(currentInfo);
             }
         }
 
         System.out.println(data.size() + " rows selected.\n");
         return data;
     }
+
+    public ArrayList<Map<String, String>> searchGenresUsingLevenstein(String SearchKey, int limit){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+        System.out.println("\nSelect all records from \""+GENRES+"\"");
+        System.out.println("  where attributes contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        // list of available ids of current category
+        Set<String> idlist = jedis.smembers(GENRES);
+
+        boolean contains; // if record contains searchkey
+        String currentInfo; // record info
+        Map<String,String> record; // record map
+        // for each available ids
+        for(String id : idlist)
+        {
+            contains = false;
+            currentInfo = "";
+
+            // string handling
+            String key = name(GENRES,id);
+            String value = jedis.get(key);
+            record = new HashMap<String, String>();
+            record.put(key, value);
+            int lev = FuzzySearch.levenshtein(SearchKey, value);
+            int tlev = FuzzySearch.levenshtein(translatedSearchKey, value);
+            if (lev <= limit || tlev <= limit){
+                currentInfo = "\"" + key + "\": " + value + "\n";
+
+                // similarity with searchkey
+                currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                currentInfo += "\t\tLevenstein = " + lev + "\n";
+
+                // similarity with translated searchkey
+                currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                currentInfo += "\t\tLevenstein = " + tlev + "\n\n";
+                contains = true;
+            }
+
+            // if current record contains searchkey then add ones to result
+            // and print info
+            if (contains) {
+                data.add(record);
+                System.out.println(currentInfo);
+            }
+        }
+
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    public ArrayList<Map<String, String>> searchGenresUsingJaroWinkler(String SearchKey, double limit){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+        System.out.println("\nSelect all records from \""+GENRES+"\"");
+        System.out.println("  where attributes contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        // list of available ids of current category
+        Set<String> idlist = jedis.smembers(GENRES);
+
+        boolean contains; // if record contains searchkey
+        String currentInfo; // record info
+        Map<String,String> record; // record map
+        // for each available ids
+        for(String id : idlist)
+        {
+            contains = false;
+            currentInfo = "";
+
+            // string handling
+            String key = name(GENRES,id);
+            String value = jedis.get(key);
+            record = new HashMap<String, String>();
+            record.put(key, value);
+            double jw = FuzzySearch.jaroWinkler(SearchKey, value);
+            double tjw = FuzzySearch.jaroWinkler(translatedSearchKey, value);
+            if (jw >= limit || tjw >= limit){
+                currentInfo = "\"" + key + "\": " + value + "\n";
+
+                // similarity with searchkey
+                currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                currentInfo += "\t\tJaro-Winkler = " + jw + "\n";
+
+                // similarity with translated searchkey
+                currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                currentInfo += "\t\tJaro-Winkler = " + tjw + "\n\n";
+                contains = true;
+            }
+
+            // if current record contains searchkey then add ones to result
+            // and print info
+            if (contains) {
+                data.add(record);
+                System.out.println(currentInfo);
+            }
+        }
+
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    public ArrayList<Map<String, String>> searchGenresUsingDamerauLevenstein(String SearchKey, int limit){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+        System.out.println("\nSelect all records from \""+GENRES+"\"");
+        System.out.println("  where attributes contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        // list of available ids of current category
+        Set<String> idlist = jedis.smembers(GENRES);
+
+        boolean contains; // if record contains searchkey
+        String currentInfo; // record info
+        Map<String,String> record; // record map
+        // for each available ids
+        for(String id : idlist)
+        {
+            contains = false;
+            currentInfo = "";
+
+            // string handling
+            String key = name(GENRES,id);
+            String value = jedis.get(key);
+            record = new HashMap<String, String>();
+            record.put(key, value);
+            int dlev = FuzzySearch.damerauLevenshtein(SearchKey, value);
+            int tdlev = FuzzySearch.damerauLevenshtein(translatedSearchKey, value);
+            if (dlev <= limit || tdlev <= limit){
+                currentInfo = "\"" + key + "\": " + value + "\n";
+
+                // similarity with searchkey
+                currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                currentInfo += "\t\tDamerau-Levenstein = " + dlev + "\n";
+
+                // similarity with translated searchkey
+                currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                currentInfo += "\t\tDamerau-Levenstein = " + tdlev + "\n\n";
+                contains = true;
+            }
+
+            // if current record contains searchkey then add ones to result
+            // and print info
+            if (contains) {
+                data.add(record);
+                System.out.println(currentInfo);
+            }
+        }
+
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    // searching into fields of hashmaps (actors/movies)
 
     public ArrayList<Map<String, String>> search(String Category, String SearchKey,  String Field){
         // result data array
@@ -230,6 +381,7 @@ public class DBContorller implements Constants{
 
             boolean contains; // if record contains searchkey
             String value; //  value of record's field
+            String currentInfo = "";
             // for each available ids
             for(String id : idlist)
             {
@@ -240,14 +392,193 @@ public class DBContorller implements Constants{
 
                 // if selected record's field contains the searchkey then add ones to result
                 if (contains) {
+
+                    currentInfo = "\"" + Field + "\": " + value + "\n";
+
+                    // similarity with searchkey
+                    currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                    currentInfo += "\t\tLevenstein         = " + FuzzySearch.levenshtein(SearchKey, value) + "\n";
+                    currentInfo += "\t\tJaro-Winkler       = " + FuzzySearch.jaroWinkler(SearchKey, value) + "\n";
+                    currentInfo += "\t\tDamerau-Levenstein = " + FuzzySearch.damerauLevenshtein(SearchKey, value) + "\n";
+
+                    // similarity with translated searchkey
+                    currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                    currentInfo += "\t\tLevenstein         = " + FuzzySearch.levenshtein(translatedSearchKey, value) + "\n";
+                    currentInfo += "\t\tJaro-Winkler       = " + FuzzySearch.jaroWinkler(translatedSearchKey, value) + "\n";
+                    currentInfo += "\t\tDamerau-Levenstein = " + FuzzySearch.damerauLevenshtein(translatedSearchKey, value) + "\n\n";
+
+                    System.out.println(currentInfo);
                     data.add(jedis.hgetAll(name(Category,id)));
                 }
             }
         }
-
         System.out.println(data.size() + " rows selected.\n");
         return data;
     }
+
+    public ArrayList<Map<String, String>> searchUsingLevenstein(String Category, String SearchKey,  String Field, int limit){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+
+        System.out.println("\nSelect all records from \""+Category+"\"");
+        System.out.println("  where field \"" + Field + "\" contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        if (!(Category.equalsIgnoreCase(MOVIES) || Category.equalsIgnoreCase(ACTORS))){
+
+            // invalid category name
+            // you may throw an exception here...
+
+        } else {
+
+            // list of available ids of current category
+            Set<String> idlist = jedis.smembers(Category);
+
+            boolean contains; // if record contains searchkey
+            String value; //  value of record's field
+            String currentInfo = "";
+            // for each available ids
+            for(String id : idlist)
+            {
+                value = jedis.hget(name(Category,id), Field);
+
+                // hashmap handling
+                int lev = FuzzySearch.levenshtein(SearchKey, value);
+                int tlev = FuzzySearch.levenshtein(translatedSearchKey, value);
+                contains =  lev <= limit || tlev <= limit;
+
+                // if selected record's field contains the searchkey then add ones to result
+                if (contains) {
+
+                    currentInfo = "\"" + Field + "\": " + value + "\n";
+
+                    // similarity with searchkey
+                    currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                    currentInfo += "\t\tLevenstein = " + lev + "\n";
+
+                    // similarity with translated searchkey
+                    currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                    currentInfo += "\t\tLevenstein = " + tlev + "\n\n";
+
+                    System.out.println(currentInfo);
+                    data.add(jedis.hgetAll(name(Category,id)));
+                }
+            }
+        }
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    public ArrayList<Map<String, String>> searchUsingJaroWinkler(String Category, String SearchKey,  String Field, double limit){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+
+        System.out.println("\nSelect all records from \""+Category+"\"");
+        System.out.println("  where field \"" + Field + "\" contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        if (!(Category.equalsIgnoreCase(MOVIES) || Category.equalsIgnoreCase(ACTORS))){
+
+            // invalid category name
+            // you may throw an exception here...
+
+        } else {
+
+            // list of available ids of current category
+            Set<String> idlist = jedis.smembers(Category);
+
+            boolean contains; // if record contains searchkey
+            String value; //  value of record's field
+            String currentInfo = "";
+            // for each available ids
+            for(String id : idlist)
+            {
+                value = jedis.hget(name(Category,id), Field);
+
+                // hashmap handling
+                double jw = FuzzySearch.jaroWinkler(SearchKey, value);
+                double tjw = FuzzySearch.jaroWinkler(translatedSearchKey, value);
+                contains =  jw >= limit || tjw >= limit;
+
+                // if selected record's field contains the searchkey then add ones to result
+                if (contains) {
+
+                    currentInfo = "\"" + Field + "\": " + value + "\n";
+
+                    // similarity with searchkey
+                    currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                    currentInfo += "\t\tJaro-Winkler = " + jw + "\n";
+
+                    // similarity with translated searchkey
+                    currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                    currentInfo += "\t\tJaro-Winkler = " + tjw + "\n\n";
+
+                    System.out.println(currentInfo);
+                    data.add(jedis.hgetAll(name(Category,id)));
+                }
+            }
+        }
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    public ArrayList<Map<String, String>> searchUsingDamerauLevenstein(String Category, String SearchKey,  String Field, int limit){
+        // result data array
+        ArrayList<Map<String, String>> data = new ArrayList<Map<String, String>>();
+        // translated query
+        String translatedSearchKey = langpadSwitch(SearchKey);
+
+        System.out.println("\nSelect all records from \""+Category+"\"");
+        System.out.println("  where field \"" + Field + "\" contains \""+SearchKey+"\" (or maybe \""+translatedSearchKey+"\")\n");
+
+        if (!(Category.equalsIgnoreCase(MOVIES) || Category.equalsIgnoreCase(ACTORS))){
+
+            // invalid category name
+            // you may throw an exception here...
+
+        } else {
+
+            // list of available ids of current category
+            Set<String> idlist = jedis.smembers(Category);
+
+            boolean contains; // if record contains searchkey
+            String value; //  value of record's field
+            String currentInfo = "";
+            // for each available ids
+            for(String id : idlist)
+            {
+                value = jedis.hget(name(Category,id), Field);
+
+                // hashmap handling
+                int dlev = FuzzySearch.damerauLevenshtein(SearchKey, value);
+                int tdlev = FuzzySearch.damerauLevenshtein(translatedSearchKey, value);
+                contains =  dlev <= limit || tdlev <= limit;
+
+                // if selected record's field contains the searchkey then add ones to result
+                if (contains) {
+
+                    currentInfo = "\"" + Field + "\": " + value + "\n";
+
+                    // similarity with searchkey
+                    currentInfo += "\tSimilarity with \"" + SearchKey + "\":\n";
+                    currentInfo += "\t\tLevenstein = " + dlev + "\n";
+
+                    // similarity with translated searchkey
+                    currentInfo += "\tSimilarity with \"" + translatedSearchKey + "\":\n";
+                    currentInfo += "\t\tLevenstein = " + tdlev + "\n\n";
+
+                    System.out.println(currentInfo);
+                    data.add(jedis.hgetAll(name(Category,id)));
+                }
+            }
+        }
+        System.out.println(data.size() + " rows selected.\n");
+        return data;
+    }
+
+    // language switcher
 
     public String langpadSwitch(String message){
         String translatedMessage = "";
@@ -263,6 +594,8 @@ public class DBContorller implements Constants{
         }
         return translatedMessage;
     }
+
+    // filed name builders
 
     private String name(String str1, String str2, String str3){
         return String.format("%s:%s:%s",str1,str2,str3);

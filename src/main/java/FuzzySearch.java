@@ -26,7 +26,13 @@ public class FuzzySearch {
         return D2[n];
     }
 
-    public static double jaroWinkler(){
-        return 0;
+    public static double jaroWinkler(String s1, String s2){
+        JaroWinkler jw = new JaroWinkler();
+        return jw.similarity(s1, s2);
+    }
+
+    public static int damerauLevenshtein(String s1, String s2){
+        DamerauLevenshtein dl = new DamerauLevenshtein(s1, s2);
+        return dl.getSimilarity();
     }
 }
