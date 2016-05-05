@@ -3,7 +3,7 @@ import java.util.Arrays;
 /**
  * Class that calculated jaro-Winkler distance
  */
-public class JaroWinkler{
+public class JaroWinkler implements FuzzySearch {
 
 
     public JaroWinkler() {
@@ -37,7 +37,7 @@ public class JaroWinkler{
         return threshold;
     }
 
-    public double similarity(String s1, String s2) {
+    public double getDistance(String s1, String s2) {
         int[] mtp = matches(s1, s2);
         float m = mtp[0];
         if (m == 0) {
@@ -51,7 +51,7 @@ public class JaroWinkler{
 
 
     public double distance(String s1, String s2) {
-        return 1.0 - similarity(s1, s2);
+        return 1.0 - getDistance(s1, s2);
     }
 
 
@@ -110,5 +110,9 @@ public class JaroWinkler{
             }
         }
         return new int[]{matches, transpositions / 2, prefix, max.length()};
+    }
+
+    public boolean fits(String s1, String s2, double limit) {
+        return getDistance(s1, s2) >= limit;
     }
 }
